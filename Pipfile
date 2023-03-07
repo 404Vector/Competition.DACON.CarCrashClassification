@@ -13,6 +13,7 @@ pandas = "*"
 tqdm = "*"
 pytorchvideo = "*"
 wandb = "*"
+timm = "*"
 
 [dev-packages]
 
