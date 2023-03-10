@@ -28,6 +28,8 @@ class Result:
         'ego_involve': np.ones((2,2), np.float32).tolist(),
         'weather': np.ones((3,3), np.float32).tolist(),
         'timing': np.ones((2,2), np.float32).tolist(),
+        'w&t': np.ones((6,6), np.float32).tolist(),
+        'c&e': np.ones((3,3), np.float32).tolist(),
     }
 
     
@@ -98,3 +100,24 @@ class Result:
             return 1
         else:
             return 0
+
+    @property
+    def weather_by_timing(self) -> typing.Union[str, None]:
+        if not self.crash:
+            return None
+        else:
+            return f'{self.weather}-{self.timing}'
+
+    @property
+    def encoded_weather_by_timing(self) -> int:
+        return self.encoded_weather + (3*self.encoded_timing)
+
+    @property
+    def crash_and_ego(self) -> typing.Union[str, None]:
+        if self.ego_involve == True:
+            return 'ego_involve'
+        else:
+            return 'crash' if self.crash == True else None
+    @property
+    def encoded_crash_and_ego(self) -> int:
+        return self.encoded_crash + self.encoded_ego_involve

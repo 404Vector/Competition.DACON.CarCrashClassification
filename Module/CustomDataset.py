@@ -10,7 +10,7 @@ import numpy as np
 class CustomDataset(Dataset):
     def __init__(self, 
                  transform,
-                 mode:typing.Literal['all','crash','ego_involve','weather','timing'],
+                 mode:typing.Literal['all','crash','ego_involve','weather','timing','w&t'],
                  data:pd.DataFrame) -> None:
         self.mode = mode
         self.one_hot_encoder = Result.one_hot_encoder[mode]
@@ -20,7 +20,7 @@ class CustomDataset(Dataset):
         self.label_list = data['label']
         
     @staticmethod
-    def create_dataframe(mode:typing.Literal['all','crash','ego_involve','weather','timing']='crash',
+    def create_dataframe(mode:typing.Literal['all','crash','ego_involve','weather','timing','w&t']='crash',
                          data_path:str='./data', 
                          csv_target:typing.Literal['train.csv','test.csv']='train.csv') -> pd.DataFrame:
         df = pd.read_csv(os.path.join(data_path, csv_target))
@@ -58,16 +58,17 @@ class CustomDataset(Dataset):
                 return [result.encoded_ego_involve for result in results]
             elif mode == 'weather':
                 return [result.encoded_weather for result in results]
-            if mode == 'timing':
+            elif mode == 'timing':
                 return [result.encoded_timing for result in results]
+            elif mode == 'w&t':
+                return [result.encoded_weather_by_timing for result in results]
             else:
                 raise Exception(f"Unknown mode : {mode}")
 
     def __getitem__(self, index):
         frames = self.get_video(self.video_path_list[index])
+        label = self.label_list[index]
         if self.label_list is not None:
-            label = self.label_list[index]
-            # label = torch.FloatTensor(self.one_hot_encoder[label])
             return frames, label
         else:
             return frames
