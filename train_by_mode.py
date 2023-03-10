@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.cuda.amp import GradScaler, autocast
+from segmentation_models_pytorch.losses import FocalLoss
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -21,10 +22,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--batch_size',type=int, default=5)
     parser.add_argument('--epoch',type=int, default=10)
     parser.add_argument('--lr',type=float, default=1e-3)
-    parser.add_argument('--model',type=str, default='Resnet3D_v1')
+    parser.add_argument('--model',type=str, default='efficientnetv2_s')
     parser.add_argument('--device',type=str, default='cuda')
     parser.add_argument('--data_path',type=str, default='./data')
-    parser.add_argument('--mode', choices=['all','crash','ego_involve','weather','timing',])
+    parser.add_argument('--mode', choices=['all','crash','ego_involve','weather','timing','w&t'])
     parser.add_argument('--number_of_workers',type=int, default=0)
     args = parser.parse_args()
     return args
@@ -51,7 +52,8 @@ def train(args:argparse.Namespace, train_data_frame:pd.DataFrame, valid_data_fra
     number_of_labels = len(set(train_data_frame['label'].values))
     model = L.create_model(model_name, number_of_labels)
     model = model.to(device)
-    criterion = nn.CrossEntropyLoss().to(device)
+    # criterion = nn.CrossEntropyLoss().to(device)
+    criterion = FocalLoss('multiclass').to(device)
     # criterion = M.FocalLoss().to(device)
     optimizer = torch.optim.Adam(params = model.parameters(), lr = lr)
     best_val_score = 0
