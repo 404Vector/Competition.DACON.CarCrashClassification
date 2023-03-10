@@ -15,6 +15,7 @@ pytorchvideo = "*"
 wandb = "*"
 timm = "*"
 seaborn = "*"
+segmentation-models-pytorch = "*"
 
 [dev-packages]
 
