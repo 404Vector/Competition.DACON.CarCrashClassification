@@ -49,7 +49,7 @@ class Result:
         '''
         본인 차량의 충돌 사고 연류 여부 (No/Yes) or None
         '''
-        return self.label < 7 if self.crash else None
+        return (self.label < 7) if self.crash == True else None
 
     @property
     def encoded_ego_involve(self) -> int:
