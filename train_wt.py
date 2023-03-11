@@ -14,12 +14,13 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.cuda.amp import GradScaler, autocast
 import timm
+from segmentation_models_pytorch.losses import FocalLoss
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed',type=int, default=21)
     parser.add_argument('--input_size',type=int, default=128)
-    parser.add_argument('--batch_size',type=int, default=5)
+    parser.add_argument('--batch_size',type=int, default=16)
     parser.add_argument('--epoch',type=int, default=10)
     parser.add_argument('--lr',type=float, default=1e-3)
     parser.add_argument('--model',type=str, default='efficientnet_b0')
@@ -30,6 +31,7 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     return args
 
+    
 def train(args:argparse.Namespace, train_data_frame:pd.DataFrame, valid_data_frame:pd.DataFrame):
     now = args.now
     device = args.device
@@ -52,14 +54,15 @@ def train(args:argparse.Namespace, train_data_frame:pd.DataFrame, valid_data_fra
     number_of_labels = len(set(train_data_frame['label'].values))
     model = timm.create_model(model_name=model_name, num_classes=number_of_labels, pretrained=True) #L.create_model(model_name, number_of_labels)
     model = model.to(device)
-    criterion = nn.CrossEntropyLoss().to(device)
-    # criterion = M.FocalLoss().to(device)
+    # criterion = nn.CrossEntropyLoss().to(device)
+    criterion = FocalLoss(mode='multiclass', alpha=0.25).to(device)
     optimizer = torch.optim.Adam(params = model.parameters(), lr = lr)
     best_val_score = 0
 
     for epoch in range(1, epoch+1):
         model.train()
         train_loss = []
+        train_preds, train_labels = [], []
         # Train
         for videos, labels in tqdm(iter(train_loader)):
             videos = videos.to(device)
@@ -75,6 +78,10 @@ def train(args:argparse.Namespace, train_data_frame:pd.DataFrame, valid_data_fra
             scaler.step(optimizer) # optimizer.step()
             scaler.update() # Updates the scale for next iteration.
             train_loss.append(loss.item())
+            train_preds += output.argmax(1).detach().cpu().numpy().tolist()
+            train_labels += labels.detach().cpu().numpy().tolist()
+        _train_score = f1_score(train_labels, train_preds, average='macro')
+        _train_loss = np.mean(train_loss)
         # Valid
         model.eval()
         val_loss = []
@@ -92,11 +99,13 @@ def train(args:argparse.Namespace, train_data_frame:pd.DataFrame, valid_data_fra
             _val_loss = np.mean(val_loss)
 
         _val_score = f1_score(val_labels, val_preds, average='macro')
-
-        _train_loss = np.mean(train_loss)
-        print(f'Epoch [{epoch}], Train Loss : [{_train_loss:.5f}] Val Loss : [{_val_loss:.5f}] Val F1 : [{_val_score:.5f}]')
+        print(f'Epoch [{epoch}], Train Loss : [{_train_loss:.5f}] Train F1 : [{_train_score:.5f}]')
+        M.print_each_acc(M.get_each_acc(number_of_labels, train_labels, train_preds))
+        print(f'Epoch [{epoch}], Val Loss : [{_val_loss:.5f}] Val F1 : [{_val_score:.5f}]')
+        M.print_each_acc(M.get_each_acc(number_of_labels, val_labels, val_preds))
         wandb.log({
             "Train_loss": _train_loss,
+            "Train_F1": _train_score,
             "Valid_loss": _val_loss,
             "Valid_F1": _val_score,
         })
@@ -107,20 +116,24 @@ def train(args:argparse.Namespace, train_data_frame:pd.DataFrame, valid_data_fra
 
 def main(args:argparse.Namespace):
     args.now = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    M.SeedFixer.seed_everything(args.seed)
+    df = M.SplitWTDataset.create_dataframe()
+    skf = StratifiedKFold(shuffle=True, random_state=args.seed)
+    df_0 = pd.DataFrame(df[df['frame_idx'] == 0].to_dict(orient='list'))
+    splited_iters = skf.split(df_0['sample_id'], df_0['label'])
+    train_idxs, valid_idxs = next(splited_iters)
+    train_iloc_key = df_0.iloc[train_idxs]['sample_id'].values
+    valid_iloc_key = df_0.iloc[valid_idxs]['sample_id'].values
+    train_idxs_full = [sample_id in train_iloc_key for sample_id in df['sample_id'].values]
+    valid_idxs_full = [sample_id in valid_iloc_key for sample_id in df['sample_id'].values]
+    train_df = pd.DataFrame(df_0.iloc[train_idxs].to_dict(orient='list'))
+    valid_df = pd.DataFrame(df_0.iloc[valid_idxs].to_dict(orient='list'))
     wandb.init(
         project="Competition.DACON.CarCrashClassification",
         group=args.mode,
         name=f"{args.mode}.{args.model}",
         config=args,
     )
-    M.SeedFixer.seed_everything(args.seed)
-    df = M.SplitWTDataset.create_dataframe()
-    skf = StratifiedKFold(shuffle=True, random_state=args.seed)
-    splited_iters = skf.split(df['video_path'], df['label'])
-    
-    train_idxs, valid_idxs = next(splited_iters)
-    train_df = pd.DataFrame(df.iloc[train_idxs].to_dict(orient='list'))
-    valid_df = pd.DataFrame(df.iloc[valid_idxs].to_dict(orient='list'))
     train(args=args, train_data_frame=train_df, valid_data_frame=valid_df)
     wandb.finish()
 
