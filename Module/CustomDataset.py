@@ -10,7 +10,7 @@ import numpy as np
 class CustomDataset(Dataset):
     def __init__(self, 
                  transform,
-                 mode:typing.Literal['all','crash','ego_involve','weather','timing','w&t'],
+                 mode:typing.Literal['all','crash','ego_involve','weather','timing','w&t','c&e'],
                  data:pd.DataFrame) -> None:
         self.mode = mode
         self.one_hot_encoder = Result.one_hot_encoder[mode]
@@ -20,7 +20,7 @@ class CustomDataset(Dataset):
         self.label_list = data['label']
         
     @staticmethod
-    def create_dataframe(mode:typing.Literal['all','crash','ego_involve','weather','timing','w&t']='crash',
+    def create_dataframe(mode:typing.Literal['all','crash','ego_involve','weather','timing','w&t','c&e']='crash',
                          data_path:str='./data', 
                          csv_target:typing.Literal['train.csv','test.csv']='train.csv') -> pd.DataFrame:
         df = pd.read_csv(os.path.join(data_path, csv_target))
@@ -38,7 +38,7 @@ class CustomDataset(Dataset):
     def __get_video_paths__(mode:str, df:pd.DataFrame, data_path:str) -> typing.List[str]:
         if mode == 'all':
             return [os.path.join(data_path, path[2:]) for path in df['video_path'].values]
-        elif mode == 'crash':
+        elif mode == 'crash' or mode == 'c&e':
             return [os.path.join(data_path, path[2:]) for path in df['video_path'].values]
         else:
             df_sub = df[df['label'] > 0]
@@ -51,6 +51,9 @@ class CustomDataset(Dataset):
         elif mode == 'crash':
             results = [Result(label) for label in df['label'].values]
             return [result.encoded_crash for result in results]
+        elif mode == 'c&e':
+            results = [Result(label) for label in df['label'].values]
+            return [result.encoded_crash_and_ego for result in results]
         else:
             df_sub = df[df['label'] > 0]
             results = [Result(label) for label in df_sub['label'].values]
