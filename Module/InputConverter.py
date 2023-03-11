@@ -19,7 +19,7 @@ class ImageInputConverter:
     def __init__(self, input_size:int) -> None:
         self.atf = A.Compose([
             A.SafeRotate(limit=(-90, 90)),
-            A.RandomResizedCrop(input_size, input_size, scale=(0.5,1)),
+            A.RandomResizedCrop(input_size, input_size, scale=(0.8,1)),
             A.HorizontalFlip(),
             A.VerticalFlip(),
             A.Normalize(),
