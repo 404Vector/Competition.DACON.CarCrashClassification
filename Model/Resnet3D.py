@@ -12,7 +12,6 @@ class ResidualBlock3D(nn.Module):
             nn.Conv3d(in_channel, mid_channel, (3, 3, 3), stride=(1,1,1), padding=(1,1,1), bias=False),
             nn.BatchNorm3d(mid_channel),
             nn.ReLU(),
-            nn.Dropout(),
             nn.Conv3d(mid_channel, out_channel, (3, 3, 3), stride=(1,1,1), padding=(1,1,1), bias=False),
             nn.BatchNorm3d(out_channel),
         )
@@ -21,7 +20,6 @@ class ResidualBlock3D(nn.Module):
             nn.BatchNorm3d(out_channel)
         )
         self.relu = nn.ReLU()
-        self.dropout = nn.Dropout()
         # Weight init
         for m in self.modules():
             if isinstance(m, nn.Conv3d):
@@ -30,7 +28,7 @@ class ResidualBlock3D(nn.Module):
     def forward(self, x):
         out = self.blocks(x) + self.shortcut(x)
         out = self.relu(out)
-        out = self.dropout(out)
+        # out = self.dropout(out)
         return out
 
 class Resnet3D_v1(nn.Module):
