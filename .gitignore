@@ -4,7 +4,10 @@ wandb/*
 data/train/*
 data/test/*
 data/split_video.result/*
-data/split_video.csv
+*.csv
+!train.csv
+!test.csv
+!sample_submission.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
