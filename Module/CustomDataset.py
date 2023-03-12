@@ -23,13 +23,12 @@ class CustomDataset(Dataset):
     def create_dataframe(mode:typing.Literal['all','crash','ego_involve','weather','timing','w&t','c&e']='crash',
                          data_path:str='./data', 
                          csv_target:typing.Literal['train.csv','test.csv']='train.csv') -> pd.DataFrame:
-        df = pd.read_csv(os.path.join(data_path, csv_target))
-        video_path_list = CustomDataset.__get_video_paths__(mode, df, data_path)
-        label_list = CustomDataset.__get_label_list__(mode, df)
+        df_raw = pd.read_csv(os.path.join(data_path, csv_target))
+        video_path_list = CustomDataset.__get_video_paths__(mode, df_raw, data_path)
         df = pd.DataFrame()
         df['video_path'] = video_path_list
         if csv_target == 'train.csv':
-            df['label'] = label_list
+            df['label'] = CustomDataset.__get_label_list__(mode, df_raw)
         else:
             df['label'] = [None for p in video_path_list]
         return df
@@ -41,7 +40,7 @@ class CustomDataset(Dataset):
         elif mode == 'crash' or mode == 'c&e':
             return [os.path.join(data_path, path[2:]) for path in df['video_path'].values]
         else:
-            df_sub = df[df['label'] > 0]
+            df_sub = df[df['label'] > 0] if 'label' in df.columns else df
             return [os.path.join(data_path, path[2:]) for path in df_sub['video_path'].values]
     
     @staticmethod
@@ -71,7 +70,7 @@ class CustomDataset(Dataset):
     def __getitem__(self, index):
         frames = self.get_video(self.video_path_list[index])
         label = self.label_list[index]
-        if self.label_list is not None:
+        if label is not None:
             return frames, label
         else:
             return frames
